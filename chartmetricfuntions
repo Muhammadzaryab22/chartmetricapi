@@ -1,0 +1,168 @@
+library(tidyverse)
+library(httr)
+library(jsonlite)
+library(rjson)
+library(curl)
+
+
+h2 <- new_handle(verbose = TRUE)
+handle_setheaders(h2,
+                  "Content-Type" = "application/json",
+                  "Authorization" = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MjY1NzQ5OCwidGltZXN0YW1wIjoxNjc4NTQxNDQ3NzUxLCJpYXQiOjE2Nzg1NDE0NDcsImV4cCI6MTY3ODU0NTA0N30.kEKPGX4tHY2quErLn00rEp9661OShVpVudKpabZH830"
+)
+
+## creating function:
+getid <- function(name){
+  
+r <- curl_fetch_memory(paste("https://api.chartmetric.com/api/search?q=",name,"&limit=3", sep = ''),h2)
+
+char <- rawToChar(r$content)
+
+jsonlist <- fromJSON(char)
+
+artists_list <- jsonlist$obj$artists
+
+filteredartist <- tibble(disc = artists_list, Names = names(artists_list)) %>% 
+  hoist(disc, sp_followers = "sp_followers") %>%
+  filter(sp_followers > 500) %>%
+  unnest_wider(disc) 
+
+
+
+#filteredartist <- filteredartist %>% select(id, name)
+
+}
+
+# Filter function
+filter_by_genre <- function(sp_follower, number) {
+  sp_follower$number > number
+}
+
+# Filter the list by genre "Rock"
+filtered_artists <- lapply(artists_list, filter_by_genre, 500)
+
+# Print the filtered list
+filtered_artists
+
+
+
+
+dd <- getid("47ter")
+dd2 <- getid("!llflow")
+
+## read file
+
+artistnames <- read.csv("/Users/muhammad.zaryab/Desktop/scripts/artist_tags.csv")
+
+## loop
+
+n = 8376
+
+datalist = list()
+
+# Step 1: create empty data frame
+result_df <- data.frame(sp_followers = numeric(), id = numeric(), name =character(),  image_url = character(), isni= logical(), stringsAsFactors = FALSE)
+
+
+for (i in 1:200) {
+  
+  # Step 3: call getid() function
+  current_result <- getid(artistnames$Name[i])
+  
+  Sys.sleep(5)
+  
+  # Step 4: add row to data frame
+  result_df <- rbind(result_df, current_result)
+  
+  Sys.sleep(2)
+}
+
+
+
+
+
+
+## creating function for metadata:
+getgenre <- function(id){
+  
+  r <- curl_fetch_memory(paste("https://api.chartmetric.com/api/artist/",id,"", sep = ''),h2)
+  
+  char <- rawToChar(r$content)
+  
+  jsonlist <- fromJSON(char)
+  
+  df <- cbind(jsonlist$obj$name,jsonlist$obj$genres$primary$name,jsonlist$obj$career_status$stage)
+  
+  df <- as.data.frame(df)
+  
+  
+#  artists_genre <- jsonlist$obj$genres$primary$name
+  
+#  artists_career <- jsonlist$obj$career_status$stage
+  
+#  artists_name <- jsonlist$obj$name
+  
+#  df<- data_frame(name = artists_name, genre= artists_genre, tier= artists_career)
+
+  #filteredartist <- filteredartist %>% select(id, name)
+  
+}
+
+
+
+getfollowers <- function(id){
+  
+  r <- curl_fetch_memory(paste("https://api.chartmetric.com/api/artist/",id,"/stat/instagram?field=followers", sep = ''),h2)
+  
+  char <- rawToChar(r$content)
+  
+  jsonlist <- fromJSON(char)
+  
+  df <- cbind(jsonlist$obj$name,jsonlist$obj$genres$primary$name,jsonlist$obj$career_status$stage)
+  
+  df <- as.data.frame(df)
+  
+  
+  #  artists_genre <- jsonlist$obj$genres$primary$name
+  
+  #  artists_career <- jsonlist$obj$career_status$stage
+  
+  #  artists_name <- jsonlist$obj$name
+  
+  #  df<- data_frame(name = artists_name, genre= artists_genre, tier= artists_career)
+  
+  #filteredartist <- filteredartist %>% select(id, name)
+  
+}
+
+
+r <- curl_fetch_memory("https://api.chartmetric.com/api/artist/2238/stat/instagram?field=followers",h2)
+
+
+
+
+
+iddata <- read.csv("/Users/muhammad.zaryab/Desktop/scripts/apirequests/iddata.csv")
+iddata <- na.omit(iddata)
+
+## loop
+
+
+# Step 1: create empty data frame
+#result_df <- data.frame(name= character(), genre= character(), tier= character(), stringsAsFactors = FALSE)
+result_df <- data.frame(V1 = character(), V2= character(), V3=character())
+
+for (i in 1:7) {
+  
+  # Step 3: call getid() function
+  current_result <- getgenre(iddata$id[i])
+  
+  Sys.sleep(2)
+  
+  # Step 4: add row to data frame
+  result_df <- rbind(result_df, current_result)
+  
+  Sys.sleep(2)
+}
+
+result_df[5,] <- NA
